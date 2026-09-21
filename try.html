@@ -48,6 +48,10 @@
   input[type=text],input[type=password],textarea,select{width:100%; border:1px solid var(--line); border-radius:9px; padding:11px 13px; font-size:14px; font-family:inherit; background:#fbfaf8; color:var(--ink); transition:border-color .15s}
   input:focus,textarea:focus,select:focus{outline:none; border-color:var(--ink); background:#fff}
   textarea{min-height:170px; resize:vertical; font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13px; line-height:1.55}
+  .editor{width:100%; min-height:210px; max-height:460px; overflow:auto; border:1px solid var(--line); border-radius:9px; padding:11px 13px; font-size:14px; background:#fbfaf8; color:var(--ink); line-height:1.65; outline:none; transition:border-color .15s}
+  .editor:focus{border-color:var(--ink); background:#fff}
+  .editor:empty::before{content:attr(data-placeholder); color:#9a9a9a; pointer-events:none; display:block}
+  .editor img{max-width:100%}
   .row{display:grid; grid-template-columns:1fr 1fr; gap:0 18px}
   @media(max-width:820px){.row{grid-template-columns:1fr}}
   .hint{font-size:12px; color:var(--muted); margin-top:5px}
@@ -170,9 +174,9 @@
           </div>
         </div>
 
-        <label for="content">正文 HTML</label>
-        <textarea id="content" placeholder='<section style="font-size:15px"><p>正文内容……</p><img src="https://example.com/cover-in-body.png" style="width:100%"></section>'></textarea>
-        <div class="hint">支持外链 <code>&lt;img src="http(s)://…"&gt;</code> 与 <code>data:image/...;base64,…</code> 内联图，自动搬运到素材库并替换地址。</div>
+        <label for="content">正文（富文本粘贴 / HTML 源码均可）</label>
+        <div id="content" class="editor" contenteditable="true" data-placeholder="点进输入框，然后把文章内容直接 Ctrl+V 粘贴进来——从 Word、网页、AI 对话复制均可，排版自动保留；也可以粘贴 HTML 源码"></div>
+        <div class="hint">三种粘贴都支持：① 从 Word / 网页 / AI 对话直接 <b>Ctrl+V</b>，排版自动保留；② 粘贴 HTML 源码（<code>&lt;section&gt;</code>、<code>&lt;img&gt;</code> 等，当 HTML 处理）；③ 纯文本。外链图片自动搬运到素材库并替换地址。</div>
 
         <label for="thumbUrl">封面图 URL</label>
         <input type="text" id="thumbUrl" placeholder="https://example.com/cover.jpg（将上传到该公众号素材库）">
@@ -308,6 +312,52 @@ function mcpUrlOf(){
   return server ? server + "/mcp/" : null;
 }
 
+/* ==================== 正文富文本编辑器 ====================
+   textarea 只接受纯文本粘贴（排版在粘贴瞬间就被浏览器丢弃），
+   这里用 contenteditable 接收富文本；智能粘贴策略：
+   ① 剪贴板带 text/html（Word/网页/AI 对话）→ 清洗后按富文本插入；
+   ② 纯文本但内容像 HTML 源码 → 当 HTML 插入；
+   ③ 纯文本 → 转义后按 <br> 换行插入。 */
+const contentEl = document.getElementById("content");
+function editorContent(){
+  if (contentEl.innerText.trim() === "" && !contentEl.querySelector("img")) return "";
+  return contentEl.innerHTML.trim();
+}
+function sanitizePaste(html){
+  const box = document.createElement("div");
+  box.innerHTML = html;
+  box.querySelectorAll("script,style,meta,link,iframe,object,embed").forEach(n => n.remove());
+  box.querySelectorAll("*").forEach(n => {
+    if (n.tagName.includes(":")) { n.replaceWith(...n.childNodes); return; }  // Word 的 o:p 等
+    [...n.attributes].forEach(a => {
+      const name = a.name.toLowerCase();
+      if (name.startsWith("on")) n.removeAttribute(a.name);
+      else if ((name === "href" || name === "src") && /^\s*javascript:/i.test(a.value)) n.removeAttribute(a.name);
+    });
+  });
+  return box.innerHTML;
+}
+contentEl.addEventListener("paste", (e) => {
+  e.preventDefault();
+  const cd = e.clipboardData || window.clipboardData;
+  if (!cd || !cd.getData) return;
+  const html = cd.getData("text/html") || "";
+  const text = cd.getData("text/plain") || "";
+  let insert = "";
+  if (html) {
+    insert = sanitizePaste(html);
+  } else if (/<\s*(section|p|div|img|h[1-6]|ul|ol|table|blockquote|span|strong|em|b|i|u|font|br)\b/i.test(text)) {
+    insert = sanitizePaste(text);
+  } else if (text) {
+    insert = esc(text).replace(/\n/g, "<br>");
+  }
+  if (insert) document.execCommand("insertHTML", false, insert);
+});
+contentEl.addEventListener("input", () => {
+  const v = contentEl.innerHTML.trim().toLowerCase();
+  if (v === "<br>" || v === "<div><br></div>") contentEl.innerHTML = "";
+});
+
 /* ==================== MCP 客户端 ==================== */
 let rpcId = 0;
 async function mcpCall(url, cardKey, method, params){
@@ -371,7 +421,7 @@ async function runSync(){
   const appid = document.getElementById("appid").value.trim();
   const secret = document.getElementById("secret").value.trim();
   const title = document.getElementById("title").value.trim();
-  const content = document.getElementById("content").value.trim();
+  const content = editorContent();
   const thumbUrl = document.getElementById("thumbUrl").value.trim();
 
   if(!url){ toast("请填服务地址"); return; }
@@ -444,7 +494,7 @@ function fillDemo(){
   document.getElementById("author").value = "产品组";
   document.getElementById("digest").value = "本月上线功能与数据回顾";
   document.getElementById("thumbUrl").value = "https://picsum.photos/900/383";
-  document.getElementById("content").value =
+  document.getElementById("content").innerHTML =
 `<section style="font-family:-apple-system,'PingFang SC',sans-serif;font-size:15px;color:#333;line-height:1.8;padding:0 16px">
   <h2 style="font-size:20px;font-weight:700;margin:24px 0 12px">本月亮点</h2>
   <p style="margin:0 0 16px">本月我们上线了三个核心功能，覆盖了 <strong style="color:#c0392b">87%</strong> 的高频用户诉求。</p>
