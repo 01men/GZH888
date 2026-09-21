@@ -240,8 +240,6 @@
   <div class="wrap">
     <div class="sec-title">常见问题</div>
     <div class="sec-sub"></div>
-    <details><summary>图片存在哪里？会不会占我云函数的存储？</summary><p>图片存到的是<b>该公众号自己的素材库</b>（微信公众平台名下）。云函数只在处理时临时暂存，处理完立即删除，不占云函数存储资源。</p></details>
-    <details><summary>公众号的 AppSecret 会怎么处理？</summary><p>首次提供后服务会记住（存于云函数 /tmp 下的 SQLite，实例回收即消失），之后调用只需 AppID。若后续携带了新的 Secret，以最新请求为准并覆盖更新。卡密在库中只存 SHA256 摘要。</p></details>
     <details><summary>报错了怎么看？</summary><p>所有错误都返回「人话翻译 + 原始报错」：<code>message</code> 是一句话解释（如“服务器出口 IP 不在公众号 IP 白名单”），<code>raw_error</code> 保留原始 errcode/errmsg 供排查。</p></details>
     <details><summary>公众号 IP 白名单怎么填？</summary><p>云函数开启了固定公网出口 IP，把它填入公众号后台「设置与开发 → 基本配置 → IP 白名单」即可（当前固定 IP：101.34.223.206）。</p></details>
     <details><summary>一次能同步几篇？有什么限制？</summary><p>单次 1–8 篇（微信上限）。单图 ≤10MB，格式 png/jpg/jpeg/gif/bmp（webp 微信不支持，会明确报错）。标题 ≤64 字、摘要 ≤120 字。</p></details>
