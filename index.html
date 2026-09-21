@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GZH888 · 把文章草稿原样同步到公众号草稿箱</title>
+<meta name="description" content="标准 MCP 服务：把文章草稿原样同步到微信公众号草稿箱。图片自动入素材库，样式零丢失，三步接入，无需服务器。">
+<style>
+  :root{
+    --bg:#f7f6f3; --ink:#1a1a1a; --muted:#6b6b6b; --line:#e4e2dc;
+    --card:#ffffff; --accent:#c8f04b; --accent-ink:#20310a;
+    --code-bg:#17181d; --code-ink:#e8e6e1; --code-kw:#8ab4ff;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; line-height:1.65; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+  nav{position:sticky; top:0; z-index:50; backdrop-filter:blur(10px); background:rgba(247,246,243,.85); border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex; align-items:center; gap:26px; height:60px}
+  .brand{font-weight:700; font-size:15px}
+  .brand span{color:var(--muted); font-weight:400}
+  nav .links{margin-left:auto; display:flex; gap:22px; align-items:center}
+  nav .links a{color:var(--muted); text-decoration:none; font-size:13.5px}
+  nav .links a:hover{color:var(--ink)}
+  nav .links a.pill{background:var(--ink); color:#fff; padding:8px 18px; border-radius:999px; font-weight:600}
+  nav .links a.pill:hover{opacity:.85}
+
+  .hero{padding:88px 0 60px}
+  .hero .tag{display:inline-block; font-size:12px; color:var(--accent-ink); background:var(--accent); border-radius:999px; padding:4px 14px; font-weight:600; margin-bottom:22px}
+  .hero h1{font-size:clamp(34px,5.2vw,58px); line-height:1.14; letter-spacing:-1px; font-weight:800}
+  .hero h1 em{font-style:normal; color:var(--muted)}
+  .hero p{margin-top:18px; max-width:660px; color:var(--muted); font-size:16px}
+  .hero p b{color:var(--ink)}
+  .hero .ctas{margin-top:32px; display:flex; gap:14px; flex-wrap:wrap}
+  .btn{display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; font-family:inherit; font-weight:700; font-size:15px; padding:14px 30px; border-radius:999px; text-decoration:none; transition:opacity .15s, transform .08s}
+  .btn:active{transform:scale(.97)}
+  .btn-dark{background:var(--ink); color:#fff}
+  .btn-accent{background:var(--accent); color:var(--accent-ink)}
+  .btn:hover{opacity:.86}
+
+  section{padding:56px 0}
+  .sec-title{font-size:26px; font-weight:800; letter-spacing:-.5px; margin-bottom:8px}
+  .sec-sub{color:var(--muted); font-size:14px; margin-bottom:30px}
+
+  /* 三步接入 */
+  .step{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:30px; margin-bottom:20px}
+  .step .head{display:flex; align-items:center; gap:14px; margin-bottom:16px}
+  .step .num{font-size:13px; font-weight:800; color:var(--accent-ink); background:var(--accent); border-radius:8px; padding:3px 12px; flex-shrink:0}
+  .step h3{font-size:19px; font-weight:800}
+  .step .time{color:var(--muted); font-size:12.5px; margin-left:auto}
+  .step p{font-size:14.5px; color:#333}
+  .step ol{margin:12px 0 0 20px; font-size:14.5px; color:#333}
+  .step ol li{margin:6px 0}
+  .ip-chip{display:inline-block; font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:16px; font-weight:700; background:var(--accent); color:var(--accent-ink); border-radius:8px; padding:6px 14px; letter-spacing:.5px; margin:10px 0}
+  .step figure{margin:18px 0 0}
+  .step img{max-width:100%; border:1px solid var(--line); border-radius:10px; display:block}
+  .step figcaption{font-size:12.5px; color:var(--muted); margin-top:8px; text-align:center}
+
+  .codeblock{position:relative; background:var(--code-bg); border-radius:12px; padding:20px 22px; overflow:auto; margin-top:14px}
+  .codeblock pre{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13px; color:var(--code-ink); line-height:1.65; white-space:pre-wrap; word-break:break-all}
+  .codeblock .k{color:var(--code-kw)}
+  .copy-btn{position:absolute; top:12px; right:12px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); color:#fff; font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit}
+  .copy-btn:hover{background:rgba(255,255,255,.2)}
+  .copy-btn.done{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+  .hint{font-size:12.5px; color:var(--muted); margin-top:10px}
+
+  /* 特性 */
+  .feat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
+  @media(max-width:860px){.feat-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.feat-grid{grid-template-columns:1fr}}
+  .feat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px}
+  .feat .num{font-size:12px; font-weight:800; color:var(--accent-ink); background:var(--accent); display:inline-block; border-radius:6px; padding:2px 9px; margin-bottom:14px}
+  .feat h3{font-size:15.5px; margin-bottom:7px}
+  .feat p{font-size:13px; color:var(--muted)}
+
+  /* 试用条 */
+  .try-strip{background:var(--ink); color:#fff; border-radius:var(--radius); padding:36px 34px; display:flex; align-items:center; gap:24px; flex-wrap:wrap}
+  .try-strip h3{font-size:20px; font-weight:800}
+  .try-strip p{color:rgba(255,255,255,.7); font-size:14px; margin-top:6px}
+  .try-strip .btn{margin-left:auto}
+
+  /* FAQ */
+  details{border:1px solid var(--line); border-radius:var(--radius); background:var(--card); padding:18px 22px; margin-bottom:12px}
+  summary{cursor:pointer; font-weight:600; font-size:15px; list-style:none; display:flex; justify-content:space-between; align-items:center}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"＋"; color:var(--muted); font-size:18px}
+  details[open] summary::after{content:"－"}
+  details p{margin-top:12px; font-size:14px; color:var(--muted)}
+
+  footer{border-top:1px solid var(--line); padding:36px 0 48px; color:var(--muted); font-size:13px}
+  footer .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px}
+
+  .toast{position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--ink); color:#fff; padding:11px 22px; border-radius:999px; font-size:13.5px; opacity:0; transition:.25s; z-index:99; pointer-events:none; border:1px solid rgba(255,255,255,.2)}
+  .toast.show{transform:translateX(-50%) translateY(0); opacity:1}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand">GZH888 <span>· 公众号草稿同步</span></div>
+    <div class="links">
+      <a href="#steps">三步接入</a>
+      <a href="#features">为什么好用</a>
+      <a href="#faq">常见问题</a>
+      <a class="pill" href="try.html">在线试用</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tag">MCP · 三步接入 · 免部署</span>
+    <h1>让 AI 助手<br>替你发<em>公众号草稿</em>。</h1>
+    <p>不装插件、不写代码、不要服务器。把一个 MCP 地址交给你的 AI 助手（Claude、Cursor、Cherry Studio…），它就能替你<b>传图、排版、发草稿</b>——样式、文本、图片，<b>原汁原味</b>落进公众号草稿箱。</p>
+    <div class="ctas">
+      <a class="btn btn-dark" href="#steps">三步接入 ↓</a>
+      <a class="btn btn-accent" href="try.html">不想配置？网页直接试 →</a>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== 三步接入 ==================== -->
+<section id="steps">
+  <div class="wrap">
+    <div class="sec-title">三步接入</div>
+    <div class="sec-sub">全程约 3 分钟，之后发草稿只需要对 AI 说一句话。</div>
+
+    <!-- Step 1 -->
+    <div class="step">
+      <div class="head"><span class="num">STEP 1</span><h3>公众号绑定出口 IP</h3><span class="time">约 1 分钟 · 只需一次</span></div>
+      <ol>
+        <li>登录<b>微信公众平台</b>（mp.weixin.qq.com）→ 左侧「设置与开发」→「基本配置」；</li>
+        <li>在「开发者密码(AppSecret)」区块找到 <b>API IP 白名单</b>，点「编辑」；</li>
+        <li>把下面的 IP 加入白名单，保存。</li>
+      </ol>
+      <div class="ip-chip">101.34.223.206</div>
+      <figure>
+        <img src="assets/bind-ip.png" alt="在微信公众平台基本配置页编辑 API IP 白名单">
+        <figcaption>微信公众平台 → 设置与开发 → 基本配置 → API IP 白名单 → 编辑，加入上方 IP</figcaption>
+      </figure>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <div class="head"><span class="num">STEP 2</span><h3>把 MCP 地址复制给 AI 客户端</h3><span class="time">约 1 分钟 · 只需一次</span></div>
+      <p>在 AI 客户端的 MCP 设置里粘贴以下配置（Claude Desktop / Cursor / Cherry Studio 等通用）：</p>
+      <div class="codeblock">
+        <button class="copy-btn" onclick="copyBlock('mcpCfg', this)">复制</button>
+        <pre id="mcpCfg">{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"gzh-draft"</span>: {
+      <span class="k">"url"</span>: <span class="s">"https://atest-0gvlenb46567649d.service.tcloudbase.com/wxdraft/mcp/"</span>
+    }
+  }
+}</pre>
+      </div>
+      <p class="hint">无需填任何密钥，保存后重启/刷新客户端即可看到 <code>sync_draft</code> 等工具。</p>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+      <div class="head"><span class="num">STEP 3</span><h3>对 AI 说一句话，发一篇草稿</h3><span class="time">每次几秒</span></div>
+      <p>把下面这段话复制给你的 AI 助手，替换其中的公众号信息和内容：</p>
+      <div class="codeblock">
+        <button class="copy-btn" onclick="copyBlock('prompt', this)">复制</button>
+        <pre id="prompt">请帮我把这篇内容发到我的公众号草稿箱。
+
+公众号 AppID：wxYOUR_APPID
+公众号 AppSecret：YOUR_SECRET
+
+标题：为什么你的公众号需要一位 AI 排版助手
+正文：
+&lt;section style="font-size:15px;color:#333;line-height:1.8;padding:0 16px"&gt;
+  &lt;p&gt;在这里粘贴你的正文，支持完整的内联样式，排版会原样保留。&lt;/p&gt;
+  &lt;img src="https://example.com/any-image.png" style="width:100%"&gt;
+&lt;/section&gt;
+封面图：https://example.com/cover.jpg</pre>
+      </div>
+      <p class="hint">AI 会自动完成：图片转存素材库 → 替换正文图片地址 → 写入草稿箱。发完去公众号后台「草稿箱」查看。<b>首次需要 AppSecret</b>，之后只需 AppID（服务会记住你的公众号）。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 特性 ==================== -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-title">为什么好用</div>
+    <div class="sec-sub">一个只做一件事的微服务：把草稿原样送进草稿箱。</div>
+    <div class="feat-grid">
+      <div class="feat"><span class="num">01</span><h3>原样保真</h3><p>正文只替换图片地址，字体、颜色、排版、结构一个字节都不动，所见即所得。</p></div>
+      <div class="feat"><span class="num">02</span><h3>图片自动入库</h3><p>外链图片自动转存到公众号自己的素材库，第三方图床失效也不再裂图。</p></div>
+      <div class="feat"><span class="num">03</span><h3>多号管理</h3><p>首次提供 AppID/Secret 后服务自动记忆，之后只需 AppID；换绑新密钥以最新一次为准。</p></div>
+      <div class="feat"><span class="num">04</span><h3>标准 MCP</h3><p>Streamable HTTP 协议，主流 AI 客户端原生支持，无需安装任何插件。</p></div>
+    </div>
+    <div class="try-strip" style="margin-top:22px">
+      <div>
+        <h3>不想配置客户端？</h3>
+        <p>网页上填 AppID 和正文，点一下直接进草稿箱。</p>
+      </div>
+      <a class="btn btn-accent" href="try.html">在线试用 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FAQ ==================== -->
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-title">常见问题</div>
+    <details><summary>需要安装什么吗？</summary><p>不需要。这是标准 MCP 服务，任何支持 MCP 的 AI 客户端都能直接连接；也可以直接在<a href="try.html">网页上试用</a>，零安装。</p></details>
+    <details><summary>我的文章和图片会存在哪？</summary><p>图片转存到该公众号<b>自己的素材库</b>；本服务不留存任何正文与图片，过程文件处理完立即删除。</p></details>
+    <details><summary>AppSecret 需要每次都填吗？</summary><p>不用。首次提供后服务会记住你的公众号，之后只带 AppID 即可；如果换了新的 Secret，以最新一次提供的为准。</p></details>
+    <details><summary>支持哪些格式？有什么限制？</summary><p>图片支持 png / jpg / gif / bmp（webp 请先转格式），单张不超过 10MB；一次最多 8 篇；标题 ≤64 字、摘要 ≤120 字。</p></details>
+    <details><summary>遇到问题，或需要正式版？</summary><p>发送邮件到 <b>961589511@qq.com</b>，获取支持与正式卡密。</p></details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>GZH888 · 公众号草稿同步</div>
+    <div>MCP · Streamable HTTP · Powered by 腾讯云函数</div>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
+}
+function copyBlock(id, btn){
+  navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => {
+    btn.textContent = "已复制 ✓"; btn.classList.add("done");
+    setTimeout(() => { btn.textContent = "复制"; btn.classList.remove("done"); }, 1800);
+  });
+}
+</script>
+</body>
+</html>

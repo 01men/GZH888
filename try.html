@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公众号草稿同步 · 一键调用 MCP</title>
+<style>
+  :root{
+    --bg:#f7f6f3; --ink:#1a1a1a; --muted:#6b6b6b; --line:#e4e2dc;
+    --card:#ffffff; --accent:#c8f04b; --accent-ink:#20310a;
+    --code-bg:#17181d; --code-ink:#e8e6e1; --code-kw:#8ab4ff; --code-ok:#7ee0a3; --code-err:#ff9d8a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; line-height:1.6; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+  /* ---------- Nav ---------- */
+  nav{position:sticky; top:0; z-index:50; backdrop-filter:blur(10px); background:rgba(247,246,243,.82); border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex; align-items:center; gap:28px; height:60px}
+  .brand{font-weight:700; font-size:15px; letter-spacing:.2px}
+  .brand span{color:var(--muted); font-weight:400}
+  nav .links{margin-left:auto; display:flex; gap:22px}
+  nav .links a{color:var(--muted); text-decoration:none; font-size:13.5px}
+  nav .links a:hover{color:var(--ink)}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:84px 0 56px}
+  .hero .tag{display:inline-block; font-size:12px; color:var(--accent-ink); background:var(--accent); border-radius:999px; padding:4px 14px; font-weight:600; margin-bottom:22px}
+  .hero h1{font-size:clamp(34px,5.4vw,58px); line-height:1.14; letter-spacing:-1px; font-weight:800}
+  .hero h1 em{font-style:normal; color:var(--muted)}
+  .hero p{margin-top:18px; max-width:640px; color:var(--muted); font-size:16px}
+  .hero .cta{display:inline-block; margin-top:30px; background:var(--ink); color:#fff; text-decoration:none; font-size:15px; font-weight:600; padding:14px 30px; border-radius:999px}
+  .hero .cta:hover{opacity:.86}
+
+  section{padding:56px 0}
+  .sec-title{font-size:26px; font-weight:800; letter-spacing:-.5px; margin-bottom:8px}
+  .sec-sub{color:var(--muted); font-size:14px; margin-bottom:28px}
+
+  /* ---------- Cards ---------- */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:26px}
+  .grid{display:grid; gap:18px}
+  .grid.two{grid-template-columns:1fr 1fr}
+  @media(max-width:820px){.grid.two{grid-template-columns:1fr}}
+
+  label{display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin:16px 0 6px; letter-spacing:.2px}
+  input[type=text],input[type=password],textarea,select{width:100%; border:1px solid var(--line); border-radius:9px; padding:11px 13px; font-size:14px; font-family:inherit; background:#fbfaf8; color:var(--ink); transition:border-color .15s}
+  input:focus,textarea:focus,select:focus{outline:none; border-color:var(--ink); background:#fff}
+  textarea{min-height:170px; resize:vertical; font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13px; line-height:1.55}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:0 18px}
+  @media(max-width:820px){.row{grid-template-columns:1fr}}
+  .hint{font-size:12px; color:var(--muted); margin-top:5px}
+  .check{display:flex; align-items:center; gap:8px; margin-top:16px; font-size:13.5px}
+  .check input{width:auto}
+
+  .btn{display:inline-flex; align-items:center; gap:8px; border:none; cursor:pointer; font-family:inherit; font-weight:700; font-size:14.5px; padding:13px 26px; border-radius:999px; transition:transform .08s, opacity .15s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--accent); color:var(--accent-ink)}
+  .btn-primary:hover{opacity:.88}
+  .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--ink); font-weight:600; padding:9px 18px; font-size:13px}
+  .btn-ghost:hover{border-color:var(--ink)}
+  .btn[disabled]{opacity:.45; cursor:not-allowed}
+  .actions{display:flex; gap:12px; margin-top:24px; align-items:center; flex-wrap:wrap}
+
+  /* ---------- Log / result ---------- */
+  .log{background:var(--code-bg); color:var(--code-ink); border-radius:var(--radius); padding:20px 22px; font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:12.8px; line-height:1.7; white-space:pre-wrap; word-break:break-all; max-height:340px; overflow:auto; margin-top:22px; display:none}
+  .log .ok{color:var(--code-ok)} .log .err{color:var(--code-err)} .log .dim{color:#8a8b92}
+  .result-box{margin-top:18px; display:none}
+  .result-box.show{display:block}
+  .kv{display:flex; gap:14px; padding:10px 0; border-bottom:1px dashed var(--line); font-size:14px}
+  .kv b{min-width:150px; font-weight:600; color:var(--muted); font-size:12.5px; text-transform:uppercase; letter-spacing:.5px}
+  .kv code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; word-break:break-all}
+
+  /* ---------- Feature grid ---------- */
+  .feat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
+  @media(max-width:820px){.feat-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.feat-grid{grid-template-columns:1fr}}
+  .feat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px}
+  .feat .num{font-size:12px; font-weight:800; color:var(--accent-ink); background:var(--accent); display:inline-block; border-radius:6px; padding:2px 9px; margin-bottom:14px}
+  .feat h3{font-size:15.5px; margin-bottom:7px}
+  .feat p{font-size:13px; color:var(--muted)}
+
+  /* ---------- MCP config ---------- */
+  .codeblock{position:relative; background:var(--code-bg); border-radius:var(--radius); padding:20px 22px; overflow:auto}
+  .codeblock pre{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:13px; color:var(--code-ink); line-height:1.65}
+  .codeblock .k{color:var(--code-kw)}
+  .copy-btn{position:absolute; top:12px; right:12px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); color:#fff; font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:inherit}
+  .copy-btn:hover{background:rgba(255,255,255,.2)}
+  .copy-btn.done{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+
+  /* ---------- FAQ ---------- */
+  details{border:1px solid var(--line); border-radius:var(--radius); background:var(--card); padding:18px 22px; margin-bottom:12px}
+  summary{cursor:pointer; font-weight:600; font-size:15px; list-style:none; display:flex; justify-content:space-between; align-items:center}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"＋"; color:var(--muted); font-size:18px; font-weight:400}
+  details[open] summary::after{content:"－"}
+  details p{margin-top:12px; font-size:14px; color:var(--muted)}
+
+  footer{border-top:1px solid var(--line); padding:36px 0 48px; color:var(--muted); font-size:13px}
+  footer .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px}
+
+  .toast{position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--ink); color:#fff; padding:11px 22px; border-radius:999px; font-size:13.5px; opacity:0; transition:.25s; z-index:99; pointer-events:none}
+  .toast.show{transform:translateX(-50%) translateY(0); opacity:1}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand">wx-draft-sync <span>· 公众号草稿同步</span></div>
+    <div class="links">
+      <a href="#run">一键同步</a>
+      <a href="#mcp">MCP 接入</a>
+      <a href="#faq">FAQ</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tag">MCP · 一键调用</span>
+    <h1>把草稿原样<br>送进<em>公众号草稿箱</em>。</h1>
+    <p>样式、文本、图片一个不少：外链图自动进入<b>该公众号的素材库</b>再引用，正文 HTML 只做图片地址替换、其余字节零改动。粘贴下面的内容，点一下，草稿就到位。</p>
+    <a class="cta" href="#run">开始同步 ↓</a>
+  </div>
+</header>
+
+<!-- ==================== 主功能区 ==================== -->
+<section id="run">
+  <div class="wrap">
+    <div class="sec-title">一键同步</div>
+    <div class="sec-sub">填入服务与文章内容，点击同步。服务地址与卡密保存在本浏览器（localStorage），不上传到任何第三方。</div>
+
+    <div class="grid two">
+      <!-- 连接配置 -->
+      <div class="card">
+        <label for="serverUrl">服务地址</label>
+        <input type="text" id="serverUrl" placeholder="https://&lt;env&gt;.service.tcloudbase.com/wxdraft">
+        <div class="hint">MCP 端点 = 服务地址 + <code>/mcp</code>（如 https://…/wxdraft/mcp）</div>
+
+        <label for="cardKey">卡密（选填）</label>
+        <input type="password" id="cardKey" placeholder="留空即用试用模式；正式卡密用户填写">
+
+        <label for="appid">公众号 AppID</label>
+        <input type="text" id="appid" placeholder="wx1234567890abcdef">
+
+        <label for="secret">公众号 AppSecret <span style="font-weight:400">（首次必填，之后可省略）</span></label>
+        <input type="password" id="secret" placeholder="首次接入提供一次，服务记住后可不填">
+        <div class="hint">服务会记住该公众号配置；下次只带 AppID 即可。若换了新 Secret，以本次填写的为准并更新记录。</div>
+
+        <label class="check" style="margin-top:14px">
+          <input type="checkbox" id="remember" checked> 在此浏览器中记住以上配置
+        </label>
+      </div>
+
+      <!-- 文章内容 -->
+      <div class="card">
+        <label for="title">标题</label>
+        <input type="text" id="title" placeholder="文章标题（≤64 字）" maxlength="64">
+
+        <div class="row">
+          <div>
+            <label for="author">作者（可选）</label>
+            <input type="text" id="author" placeholder="作者">
+          </div>
+          <div>
+            <label for="digest">摘要（可选，≤120 字）</label>
+            <input type="text" id="digest" placeholder="摘要" maxlength="120">
+          </div>
+        </div>
+
+        <label for="content">正文 HTML</label>
+        <textarea id="content" placeholder='<section style="font-size:15px"><p>正文内容……</p><img src="https://example.com/cover-in-body.png" style="width:100%"></section>'></textarea>
+        <div class="hint">支持外链 <code>&lt;img src="http(s)://…"&gt;</code> 与 <code>data:image/...;base64,…</code> 内联图，自动搬运到素材库并替换地址。</div>
+
+        <label for="thumbUrl">封面图 URL</label>
+        <input type="text" id="thumbUrl" placeholder="https://example.com/cover.jpg（将上传到该公众号素材库）">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="syncBtn" onclick="runSync()">同步到草稿箱 ⟶</button>
+      <button class="btn btn-ghost" onclick="checkHealth()">检查服务状态</button>
+      <button class="btn btn-ghost" onclick="fillDemo()">填入示例</button>
+    </div>
+
+    <!-- 运行日志 -->
+    <div class="log" id="logBox"></div>
+
+    <!-- 结果 -->
+    <div class="card result-box" id="resultBox" style="margin-top:20px">
+      <div class="sec-title" style="font-size:18px; margin-bottom:12px">同步结果</div>
+      <div id="resultBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 特性 ==================== -->
+<section>
+  <div class="wrap">
+    <div class="sec-title">它是怎么做的</div>
+    <div class="sec-sub">四步，全程不落地任何过程文件。</div>
+    <div class="feat-grid">
+      <div class="feat"><span class="num">01</span><h3>卡密鉴权</h3><p>先鉴权，后执行。支持本地卡密与远程卡密服务，网关层可匿名、安全由卡密承担。</p></div>
+      <div class="feat"><span class="num">02</span><h3>图片入素材库</h3><p>外链 / base64 图片下载后上传到<b>该公众号自己的素材库</b>，换回 media_id 或 CDN 地址。</p></div>
+      <div class="feat"><span class="num">03</span><h3>原样替换</h3><p>只改 &lt;img&gt; 的 src / data-src 属性值，文本、样式、结构其余字节不动。</p></div>
+      <div class="feat"><span class="num">04</span><h3>即用即删</h3><p>过程文件用完立即删除，云函数不留存任何文章与图片；记录只存元数据。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== MCP 客户端接入 ==================== -->
+<section id="mcp">
+  <div class="wrap">
+    <div class="sec-title">接入你的 AI 客户端</div>
+    <div class="sec-sub">在 Claude / Cursor 等 MCP 客户端中加入以下配置（把地址与卡密换成你的）：</div>
+    <div class="card" style="padding:0; border:none; background:transparent">
+      <div class="codeblock">
+        <button class="copy-btn" onclick="copyBlock('mcpCfg', this)">复制</button>
+        <pre id="mcpCfg">{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"gzh-draft"</span>: {
+      <span class="k">"url"</span>: <span id="mcpUrl">"https://atest-0gvlenb46567649d.service.tcloudbase.com/wxdraft/mcp/"</span>
+    }
+  }
+}</pre>
+      </div>
+      <p class="hint" style="margin-top:10px">试用无需任何密钥。正式卡密用户请在配置中加一段 <code>"headers": { "X-Card-Key": "你的卡密" }</code>。暴露的工具：<code>sync_draft</code>（同步草稿）、<code>upload_media</code>（素材上传）、<code>list_records</code> / <code>get_record</code>（记录查询）、<code>verify_card_key</code>（卡密校验）。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FAQ ==================== -->
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-title">常见问题</div>
+    <div class="sec-sub"></div>
+    <details><summary>图片存在哪里？会不会占我云函数的存储？</summary><p>图片存到的是<b>该公众号自己的素材库</b>（微信公众平台名下）。云函数只在处理时临时暂存，处理完立即删除，不占云函数存储资源。</p></details>
+    <details><summary>公众号的 AppSecret 会怎么处理？</summary><p>首次提供后服务会记住（存于云函数 /tmp 下的 SQLite，实例回收即消失），之后调用只需 AppID。若后续携带了新的 Secret，以最新请求为准并覆盖更新。卡密在库中只存 SHA256 摘要。</p></details>
+    <details><summary>报错了怎么看？</summary><p>所有错误都返回「人话翻译 + 原始报错」：<code>message</code> 是一句话解释（如“服务器出口 IP 不在公众号 IP 白名单”），<code>raw_error</code> 保留原始 errcode/errmsg 供排查。</p></details>
+    <details><summary>公众号 IP 白名单怎么填？</summary><p>云函数开启了固定公网出口 IP，把它填入公众号后台「设置与开发 → 基本配置 → IP 白名单」即可（当前固定 IP：101.34.223.206）。</p></details>
+    <details><summary>一次能同步几篇？有什么限制？</summary><p>单次 1–8 篇（微信上限）。单图 ≤10MB，格式 png/jpg/jpeg/gif/bmp（webp 微信不支持，会明确报错）。标题 ≤64 字、摘要 ≤120 字。</p></details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>wx-draft-sync · 公众号草稿同步服务</div>
+    <div>MCP · Streamable HTTP · FastAPI + SQLite</div>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==================== 配置持久化 ==================== */
+const FIELDS = ["serverUrl","cardKey","appid","secret"];
+function saveCfg(){
+  if(!document.getElementById("remember").checked) return;
+  const cfg = {}; FIELDS.forEach(f => cfg[f] = document.getElementById(f).value.trim());
+  localStorage.setItem("wxsync_cfg", JSON.stringify(cfg));
+}
+const DEFAULT_SERVER = "https://atest-0gvlenb46567649d.service.tcloudbase.com/wxdraft";
+function loadCfg(){
+  try{
+    const cfg = JSON.parse(localStorage.getItem("wxsync_cfg") || "{}");
+    FIELDS.forEach(f => { if(cfg[f]) document.getElementById(f).value = cfg[f]; });
+  }catch(e){}
+  if(!document.getElementById("serverUrl").value.trim()){
+    document.getElementById("serverUrl").value = DEFAULT_SERVER;
+  }
+  syncMcpUrl(document.getElementById("serverUrl").value.trim());
+}
+FIELDS.forEach(f => document.getElementById(f).addEventListener("input", () => { saveCfg(); if(f==="serverUrl") syncMcpUrl(document.getElementById(f).value.trim()); }));
+document.getElementById("remember").addEventListener("change", saveCfg);
+
+function syncMcpUrl(server){
+  server = (server||"").replace(/\/+$/,"");
+  if(server) document.getElementById("mcpUrl").textContent = JSON.stringify(server + "/mcp");
+}
+
+/* ==================== 工具 ==================== */
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+function copyBlock(id, btn){
+  navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => {
+    btn.textContent = "已复制 ✓"; btn.classList.add("done");
+    setTimeout(() => { btn.textContent = "复制"; btn.classList.remove("done"); }, 1800);
+  });
+}
+function log(msg, cls){
+  const box = document.getElementById("logBox");
+  box.style.display = "block";
+  const line = document.createElement("div");
+  if(cls) line.className = cls;
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+function clearLog(){ const box = document.getElementById("logBox"); box.innerHTML = ""; box.style.display = "none"; }
+
+function mcpUrlOf(){
+  const server = document.getElementById("serverUrl").value.trim().replace(/\/+$/,"");
+  return server ? server + "/mcp/" : null;
+}
+
+/* ==================== MCP 客户端 ==================== */
+let rpcId = 0;
+async function mcpCall(url, cardKey, method, params){
+  rpcId += 1;
+  const headers = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream"
+  };
+  if (cardKey) headers["X-Card-Key"] = cardKey;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ jsonrpc: "2.0", id: rpcId, method, params })
+  });
+  const text = await resp.text();
+  let data = null;
+  try { data = JSON.parse(text); }
+  catch(e){
+    const m = text.match(/^data:\s*(.+)$/m);   // SSE 兜底
+    if(m) data = JSON.parse(m[1]); else throw new Error("服务返回了无法解析的内容: " + text.slice(0,200));
+  }
+  if(data.error) throw Object.assign(new Error(data.error.message), { mcpError: data.error });
+  return data.result;
+}
+
+async function mcpSession(url, cardKey, fn){
+  await mcpCall(url, cardKey, "initialize", {
+    protocolVersion: "2025-03-26",
+    capabilities: {},
+    clientInfo: { name: "wx-draft-sync-web", version: "1.0.0" }
+  });
+  return await fn();
+}
+
+function toolPayload(result){
+  const sc = result && result.structuredContent;
+  if(sc && typeof sc === "object"){
+    if(Object.keys(sc).length === 1 && sc.result !== undefined) return sc.result;
+    return sc;
+  }
+  const content = result && result.content;
+  if(content && content[0] && content[0].text){ try { return JSON.parse(content[0].text); } catch(e){ return { text: content[0].text }; } }
+  return result;
+}
+
+/* ==================== 操作 ==================== */
+async function checkHealth(){
+  const server = document.getElementById("serverUrl").value.trim().replace(/\/+$/,"");
+  if(!server){ toast("请先填服务地址"); return; }
+  clearLog(); log("GET " + server + "/healthz", "dim");
+  try{
+    const r = await fetch(server + "/healthz");
+    const j = await r.json();
+    log("✓ " + r.status + "  " + JSON.stringify(j), "ok");
+  }catch(e){ log("✗ 请求失败：" + e.message + "（跨域或网络问题，请确认服务地址正确）", "err"); }
+}
+
+async function runSync(){
+  const url = mcpUrlOf();
+  const cardKey = document.getElementById("cardKey").value.trim();
+  const appid = document.getElementById("appid").value.trim();
+  const secret = document.getElementById("secret").value.trim();
+  const title = document.getElementById("title").value.trim();
+  const content = document.getElementById("content").value.trim();
+  const thumbUrl = document.getElementById("thumbUrl").value.trim();
+
+  if(!url){ toast("请填服务地址"); return; }
+  if(!appid){ toast("请填公众号 AppID"); return; }
+  if(!title || !content || !thumbUrl){ toast("标题、正文、封面图为必填"); return; }
+
+  const btn = document.getElementById("syncBtn");
+  btn.disabled = true; btn.textContent = "同步中…";
+  clearLog();
+  const resultBox = document.getElementById("resultBox"); resultBox.classList.remove("show");
+
+  const wechat = { appid };
+  if(secret) wechat.secret = secret;
+  const articles = [{
+    title,
+    author: document.getElementById("author").value.trim() || undefined,
+    digest: document.getElementById("digest").value.trim() || undefined,
+    content,
+    thumb: { url: thumbUrl }
+  }];
+  const args = { articles, wechat, request_id: "web-" + Date.now() };
+
+  try{
+    log("→ initialize  " + url, "dim");
+    const payload = await mcpSession(url, cardKey, async () => {
+      log("→ tools/call sync_draft（上传封面与正文图片、建立草稿，可能需要几十秒）", "dim");
+      const res = await mcpCall(url, cardKey, "tools/call", { name: "sync_draft", arguments: args });
+      return toolPayload(res);
+    });
+
+    resultBox.classList.add("show");
+    const body = document.getElementById("resultBody");
+    if(payload && payload.success){
+      log("✓ 同步成功", "ok");
+      const imgCount = payload.image_map ? Object.keys(payload.image_map).length : 0;
+      body.innerHTML = `
+        <div class="kv"><b>结果</b><span style="color:#1e7a3c;font-weight:700">✓ 已同步到公众号草稿箱</span></div>
+        <div class="kv"><b>draft_media_id</b><code>${esc(payload.draft_media_id)}</code></div>
+        <div class="kv"><b>公众号 AppID</b><code>${esc(payload.appid || "-")}（凭据来源：${esc(payload.account_source || "-")}）</code></div>
+        <div class="kv"><b>请求 ID</b><code>${esc(payload.request_id)}</code></div>
+        <div class="kv"><b>上传图片</b><span>${imgCount} 张已进入素材库</span></div>
+        <div class="kv"><b>封面 thumb_media_id</b><code>${esc(payload.articles && payload.articles[0] ? payload.articles[0].thumb_media_id : "-")}</code></div>`;
+      toast("同步成功");
+    }else{
+      const msg = (payload && (payload.message || payload.error)) || "未知错误";
+      const raw = payload && payload.raw_error ? JSON.stringify(payload.raw_error, null, 2) : "";
+      log("✗ " + msg, "err");
+      if(raw) log(raw, "dim");
+      body.innerHTML = `
+        <div class="kv"><b>结果</b><span style="color:#b3261e;font-weight:700">✗ 失败</span></div>
+        <div class="kv"><b>说明</b><span>${esc(msg)}</span></div>
+        ${payload && payload.code ? `<div class="kv"><b>错误码</b><code>${esc(payload.code)}</code></div>` : ""}
+        ${raw ? `<div class="kv"><b>原始报错</b><code>${esc(raw)}</code></div>` : ""}`;
+    }
+  }catch(e){
+    log("✗ 请求失败：" + e.message, "err");
+    if(e.mcpError) log(JSON.stringify(e.mcpError, null, 2), "dim");
+    const resultBox2 = document.getElementById("resultBox"); resultBox2.classList.add("show");
+    document.getElementById("resultBody").innerHTML =
+      `<div class="kv"><b>结果</b><span style="color:#b3261e;font-weight:700">✗ 调用失败</span></div><div class="kv"><b>原因</b><span>${esc(e.message)}（若服务刚部署，可能存在跨域或路由传播延迟，稍后重试）</span></div>`;
+  }finally{
+    btn.disabled = false; btn.textContent = "同步到草稿箱 ⟶";
+  }
+}
+
+function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function fillDemo(){
+  document.getElementById("title").value = "三月产品月报";
+  document.getElementById("author").value = "产品组";
+  document.getElementById("digest").value = "本月上线功能与数据回顾";
+  document.getElementById("thumbUrl").value = "https://picsum.photos/900/383";
+  document.getElementById("content").value =
+`<section style="font-family:-apple-system,'PingFang SC',sans-serif;font-size:15px;color:#333;line-height:1.8;padding:0 16px">
+  <h2 style="font-size:20px;font-weight:700;margin:24px 0 12px">本月亮点</h2>
+  <p style="margin:0 0 16px">本月我们上线了三个核心功能，覆盖了 <strong style="color:#c0392b">87%</strong> 的高频用户诉求。</p>
+  <img src="https://picsum.photos/800/450" style="width:100%;border-radius:8px;margin:8px 0 16px">
+  <blockquote style="border-left:3px solid #c8f04b;padding-left:14px;color:#666;margin:16px 0">数据不会说谎：留存环比提升 12 个百分点。</blockquote>
+  <ul style="padding-left:20px;margin:0 0 16px">
+    <li>工作台全新改版</li>
+    <li>协作权限细化到字段级</li>
+    <li>导出支持自定义模板</li>
+  </ul>
+</section>`;
+  toast("已填入示例内容（图片为 picsum.photos 演示图）");
+}
+
+loadCfg();
+</script>
+</body>
+</html>
