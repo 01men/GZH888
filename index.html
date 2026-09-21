@@ -53,7 +53,11 @@
   .step p{font-size:14.5px; color:#333}
   .step ol{margin:12px 0 0 20px; font-size:14.5px; color:#333}
   .step ol li{margin:6px 0}
-  .ip-chip{display:inline-block; font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:16px; font-weight:700; background:var(--accent); color:var(--accent-ink); border-radius:8px; padding:6px 14px; letter-spacing:.5px; margin:10px 0}
+  .ip-chip{display:inline-block; font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:16px; font-weight:700; background:var(--accent); color:var(--accent-ink); border-radius:8px; padding:6px 14px; letter-spacing:.5px; margin:10px 0; cursor:pointer; user-select:none; transition:transform .08s, opacity .15s}
+  .ip-chip:hover{opacity:.85}
+  .ip-chip:active{transform:scale(.96)}
+  .step a{color:#1d4ed8; text-decoration:none; border-bottom:1px dashed #1d4ed8}
+  .step a:hover{border-bottom-style:solid}
   .step figure{margin:18px 0 0}
   .step img{max-width:100%; border:1px solid var(--line); border-radius:10px; display:block}
   .step figcaption{font-size:12.5px; color:var(--muted); margin-top:8px; text-align:center}
@@ -132,14 +136,14 @@
     <div class="step">
       <div class="head"><span class="num">STEP 1</span><h3>公众号绑定出口 IP</h3><span class="time">约 1 分钟 · 只需一次</span></div>
       <ol>
-        <li>登录<b>微信公众平台</b>（mp.weixin.qq.com）→ 左侧「设置与开发」→「基本配置」；</li>
+        <li>登录<b><a href="https://developers.weixin.qq.com/console/index?tab1=business&tab2=dev" target="_blank" rel="noopener">微信开发者平台</a></b>（developers.weixin.qq.com），进入后点击左侧「<b>公众号</b>」→「<b>基础信息</b>」；</li>
         <li>在「开发者密码(AppSecret)」区块找到 <b>API IP 白名单</b>，点「编辑」；</li>
-        <li>把下面的 IP 加入白名单，保存。</li>
+        <li>点击下方 IP 标签自动复制，粘贴到白名单里，保存。</li>
       </ol>
-      <div class="ip-chip">101.34.223.206</div>
+      <div class="ip-chip" id="ipChip" role="button" tabindex="0" title="点击复制 IP">101.34.223.206</div>
       <figure>
         <img src="assets/bind-ip.png" alt="在微信公众平台基本配置页编辑 API IP 白名单">
-        <figcaption>微信公众平台 → 设置与开发 → 基本配置 → API IP 白名单 → 编辑，加入上方 IP</figcaption>
+        <figcaption>公众号 → 基础信息 → 开发者密码区块 → API IP 白名单 → 编辑，加入上方 IP</figcaption>
       </figure>
     </div>
 
@@ -238,6 +242,29 @@ function copyBlock(id, btn){
     setTimeout(() => { btn.textContent = "复制"; btn.classList.remove("done"); }, 1800);
   });
 }
+/* 点击 IP 标签 → 复制到剪贴板 + 浏览器消息提醒 */
+const ipChip = document.getElementById("ipChip");
+function copyIP(){
+  const ip = ipChip.textContent.trim();
+  const done = () => {
+    toast("IP 已复制：" + ip);
+    if (navigator.clipboard) {}  // 主路径已成功
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ip).then(done).catch(() => fallbackCopyIP(ip, done));
+  } else {
+    fallbackCopyIP(ip, done);
+  }
+}
+function fallbackCopyIP(ip, done){
+  const ta = document.createElement("textarea");
+  ta.value = ip; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); done(); } catch(e) { toast("复制失败，请手动选择复制：" + ip); }
+  document.body.removeChild(ta);
+}
+ipChip.addEventListener("click", copyIP);
+ipChip.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); copyIP(); } });
 </script>
 </body>
 </html>
